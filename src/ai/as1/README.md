@@ -11,6 +11,7 @@ window, finally realized this is the key to the glory of his family. He
 requested you, the Chosen One (who apparently knows how to
 communicate with a squirrel), to be his strategy advisor. As a member of greater Viterbi family, you feel obliged to help your fluffy brethren, using the power of the Force (a.k.a. Artificial Intelligence).
 As the wise Master Yoda has told you, the squirrel war on USC campus can be simulated as a game with the following rules:
+
 1. The game board is a 5x5 grid representing territories the squirrel warriors will trample.
 2. Each player takes turns as in chess or tic­tac­toe. That is, the first player takes a move, then the second player, then back to the first player and so forth.
 3. Each square has a fixed point value between 1 and 99, based upon its yield of nuts.
@@ -21,22 +22,19 @@ value of all his or her occupied squares. Thus, one wants to capture the squares
 most points.
 6. The game ends when all the squares are occupied, because no more moves are left.
 7. On each turn, a player can make one of two moves:
-Raid –​You can take over any unoccupied square that is adjacent to one of your current pieces (horizontally or vertically, but not diagonally). You place a new piece in the taken over square. Also, any enemy pieces adjacent to your new piece (horizontally or vertically, but not diagonally) are conquered and replaced by your own pieces. You can Raid a square even if there are no enemy pieces adjacent to it to be conquered. Once you have made this move, your turn is over.
+  Raid You can take over any unoccupied square that is adjacent to one of your current pieces (horizontally or vertically, but not diagonally). You place a new piece in the taken over square. Also, any enemy pieces adjacent to your new piece (horizontally or vertically, but not diagonally) are conquered and replaced by your own pieces. You can Raid a square even if there are no enemy pieces adjacent to it to be conquered. Once you have made this move, your turn is over.
 ￼￼
-￼￼Figure 1.​This is a Raid. Green raids D3 and conquers the blue piece in D2 since it is touching the new green piece in D3. A Raid always creates at least one new piece (in the square being raided), but it may not always conquer any of the other player's pieces. Thus, another valid move might have been to have raided E4. Then the green player would own D4 and E4 but would have conquered none of blue’s pieces. Note, the total value of each side before the raid was green 16 : blue 54, but afterwards is green 28 : blue 43. These values will be used in the evaluation function as explained later.
-Figure 2.​Here blue raids C3. In the process green’s pieces at D3 and D4 are conquered because they touch C3. Notice that in its next move, green will not be able to conquer any of blue’s pieces, because it can raid only D5 and E4.
-Sneak –​You can take any unoccupied square on the board that is not next to your existing pieces. This will create a new piece on the board. Unlike Raid which is an aggressive move, Sneak is a covert operation, so it won’t conquer any enemy pieces. It simply allows one to place a piece at an unoccupied square that is not reachable by Raid.
+  Sneak You can take any unoccupied square on the board that is not next to your existing pieces. This will create a new piece on the board. Unlike Raid which is an aggressive move, Sneak is a covert operation, so it won’t conquer any enemy pieces. It simply allows one to place a piece at an unoccupied square that is not reachable by Raid.
 Notice that a space that can be Raided cannot be Sneaked​(your squirrel warriors are always more aggressive when near home territory). Once you have done a Sneak, your turn is complete.
 ￼
-￼￼Figure 3.​This is a Sneak. In this case, green drops a new piece on square B3. This square is worth 48, which is a higher number, meaning that it contains some important resources (e.g. a large pine tree). A Sneak could have been carried out on any squares except for C2 since blue already occupies it. In the next move, blue can Raid B2, C1, C3 or D2, or it can Sneak any other square, except for B3 and C2, which are already occupied.
 8. Again, the Raid operation has two effects: (1) A new piece is created in the target square, and (2) any enemy pieces adjacent to the target square are turned to the player’s side. On the other hand, Sneak has only effect (1).
 9. Any unoccupied square can be taken with either Raid or Sneak, but they are mutually­exclusive. If the square is horizontally or vertically adjacent to an existing self­owned piece, it’s a Raid. Otherwise it’s a Sneak.
 10. Anytime adjacency is checked (e.g. Raid validity, conquering enemy pieces), it's always checking vertical and horizontal neighbors, but never diagonal. In other words, a diagonal neighbor is never considered adjacent.
 ￼Assignment
 PART 1:​You will write a program to determine the next move by implementing the following algorithms:
-● Greedy Best­first Search (30%);
-● Minimax (30%);
-● Alpha­Beta Pruning (30%).
+- Greedy Best­first Search
+- Minimax
+- Alpha­Beta Pruning
 PART 2:​
 You will simulate several battles by applying the above algorithms as two players (10%).
 Evaluation Function
