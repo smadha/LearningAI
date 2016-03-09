@@ -6,6 +6,7 @@ return function followed by parameters in same order
 I/P STR  -> 'Knows(Sidious,Pine)'
 O/P DICT -> {'Knows' : ['Sidious','Pine'] }
 '''
+from copy import deepcopy
 def _parse_one_fact(fact):
     parsed_fact = {}
     i = fact.index("(")
@@ -48,43 +49,85 @@ def is_constant(name):
 Variables are denoted by a single lowercaseletter.
 '''
 def is_var(name):
-    return len(name) == 1 and name.islower()
-'''
-I/P dict
-I/P - {'Traitor': ['x']}
-O/P - return Traitor
-'''
+#     return len(name) == 1 and name.islower()
+    return name[0].islower()
+
 def _get_term_one_fact(fact):
+    '''
+    I/P dict
+    I/P - {'Traitor': ['x']}
+    O/P - Traitor
+    '''
     return fact.keys()[0]
 
+def _get_var_one_fact(fact):
+    '''
+    I/P dict
+    I/P - {'Traitor': ['x']}
+    O/P - ['x']
+    '''
+    return fact.values()[0]
+
+'''
+#Rules matching conditions
+# Function name should match - first rule irrespective of anything
+#If the goal has only constants 
+# ===> the exact goal should be found in the rule
+# ===> if the rule is an implication then carry on
+# ====> If the rule is not an implication then, either only the goal is present in the rule or it is present in conjunction with some other atomic sentence
+#If the goal has a combination of variables and constants
+#===> the non variable argument-> if both have non constants ->then they should match
+#===? if both var, or one var nd other constant - simply add that to the rule set
+'''
 def get_match_fact(knowledge, query):
     '''
     knowledge = KB
     query = {'Enemy': ['Sidious', 'USC']}
     '''
+    list_fact = []
     q_term = _get_term_one_fact(query)
+    q_var = _get_var_one_fact(query)
     for k in knowledge:  # sample k = "[[{'Resource': ['x']}], [{'Secret': ['x']}]]"
         if len(k) == 2:  # if implication take RHS
             for fact in k[1]:  # sample k[1] = "[{'Secret': ['x']}]"
                 if q_term == _get_term_one_fact(fact):
-#                     print fact, k
-                    return k[:]
+                    add = True
+                    for idx,v in enumerate(_get_var_one_fact(fact)):
+                        if is_constant(v) and is_constant(q_var[idx]) and v != q_var[idx]:
+                            add = False
+#                             print "*",fact, k
+                    if add:
+                        list_fact.append(k)
         else:  # sample k = "[[{'Enemy': ['Sidious', 'USC']}]]"
             for fact in k[0]:  # sample k[0] = "[{'Enemy': ['Sidious', 'USC']}]"
                 if q_term == _get_term_one_fact(fact):
+                    add = True
+                    for idx,v in enumerate(_get_var_one_fact(fact)):
+                        if is_constant(v) and is_constant(q_var[idx]) and v != q_var[idx]:
+                            add = False
+#                             print "*",fact, k
+                    if add:
 #                     print fact, k
-                    return k[:]
-def unify(fact1, fact2):
+                        list_fact.append(k)
+
+    return deepcopy(list_fact)
+
+def unify(fact1, goal):
     '''
     I/P {'Traitor': ['Anakin']}"), "{'Traitor': ['a']}
     O/P {'a':'Anakin'}
     '''
     res = {}
+    if fact1.keys() != goal.keys():
+        return res
+    
     f1_params = enumerate(fact1.values()[0])
-    f2_params = fact2.values()[0]
+    f2_params = goal.values()[0]
     for idx, p1 in f1_params:
         p2 = f2_params[idx]
-        if (is_var(p1)):
+        if (is_var(p1) and is_var(p2)):
+                res[p2]=p1
+        elif (is_var(p1)):
             if (is_constant(p2)):
                 res[p1]=p2
         elif (is_var(p2)):
@@ -98,6 +141,7 @@ Assign z as variable name in query
 query will have only one variable
 "[[{'Traitor': ['Anakin']}]]"
 "[[{'Traitor': ['x']}]]"
+NOT USED
 '''
 def standardize_var(query):
     for fact in query[0]:
@@ -111,6 +155,7 @@ def standardize_var(query):
     return query
 '''
 Assign unique variable names in whole knowledge base
+NOT USED
 '''
 def standardize(knowledge):
     idx = 97
@@ -130,6 +175,29 @@ def standardize(knowledge):
                 fact[fact.keys()[0]] = new_var
     return knowledge
 
+idx_std = 0
+'''
+FOR ONE RULE
+Assign unique variable names to this rule in whole knowledge base 
+'''
+def standardize_rule(rule):
+    global idx_std
+    cur_var = {}
+    for side in rule:
+        for fact in side:
+            new_var = []
+            for val in fact.values()[0]:
+                if is_var(val):
+                    if val not in cur_var.keys():
+                        cur_var[val] = val + str(idx_std)
+                    new_var.append(cur_var[val])
+                else:
+                    new_var.append(val)
+            fact[fact.keys()[0]] = new_var
+    
+    idx_std += 1
+    return rule
+
     
 '''
 Apply subsititutions
@@ -143,7 +211,19 @@ O/P
 def substitute(clause, sub_map):
     clause_str = str(clause)
     for key in sub_map.keys():
-        clause_str = clause_str.replace('\'{0}\''.format(key),'\'{0}\''.format(sub_map[key]))
+        is_no_cons = is_var(sub_map[key])
+        key_temp = key
+        val_temp = None
+        while is_no_cons:
+            is_no_cons = key_temp in sub_map and is_var(sub_map[key_temp])
+            if is_no_cons: key_temp = sub_map[key_temp]
+            
+        if key_temp in sub_map:
+            val_temp = sub_map[key_temp]
+        else:
+            val_temp = key_temp
+            
+        clause_str = clause_str.replace('\'{0}\''.format(key),'\'{0}\''.format(val_temp))
         
     return eval(clause_str)
 # print _parse_one_fact("Knows(Sidious, Pine)")
@@ -161,8 +241,10 @@ def substitute(clause, sub_map):
 
 
 # print is_var('n')
+# print is_var('n1')
+# print is_var('n2')
 # print is_var('Sidious')
-# 
+
 # print is_constant('Sidious')
 # print is_constant('USC')
 # print is_constant('x')
@@ -172,6 +254,7 @@ def substitute(clause, sub_map):
 # print unify(eval("{'Traitor': ['a']}"), eval("{'Traitor': ['Anakin']}") )
 # print unify(eval("{'Traitor': ['a']}"), eval("{'Traitor': ['b']}") )
 # print unify(eval("{'Traitor': ['Anakin']}"), eval("{'Traitor': ['Anakin']}") )
+# print unify(eval("{'Traitor': ['Anakin']}"), eval("{'ViterbiSquirrel': ['x']}") )
 
 # print "[[{'ViterbiSquirrel': ['a']}, {'Secret': ['b']}, {'Tells': ['a', 'b', 'c']}, {'Hostile': ['c']}], [{'Traitor': ['a']}]]"
 # print substitute(eval("[[{'ViterbiSquirrel': ['a']}, {'Secret': ['b']}, {'Tells': ['a', 'b', 'c']}, {'Hostile': ['c']}], [{'Traitor': ['a']}]]"), eval("{'a': 'Anakin'}") )
@@ -180,3 +263,22 @@ def substitute(clause, sub_map):
 
 # print standardize_var(eval("[[{'Traitor': ['Anakin']}]]"))
 # print standardize_var(eval("[[{'Traitor': ['x']}]]"))
+
+# print substitute(eval("[{'ViterbiSquirrel': ['a']}, {'Secret': ['b']}, {'Tells': ['a', 'b', 'c']}, {'Hostile': ['c']}]"), 
+#                  eval("{'a': 'Anakin', 'c': 'Sidious', 'b': 'e', 'd': 'Pine', 'f': 'Sidious'}"))
+# 
+# print substitute(eval("[{'ViterbiSquirrel': ['a']}, {'Secret': ['e']}, {'Tells': ['a', 'b', 'c']}, {'Hostile': ['c']}]"), 
+#                  eval("{'a': 'Anakin', 'c': 'Sidious', 'e': 'b', 'b': 'Pine', 'd': 'Pine', 'f': 'Sidious'}"))
+# 
+# print substitute(eval("[{'ViterbiSquirrel': ['a']}, {'Secret': ['b']}, {'Tells': ['a', 'b', 'c']}, {'Hostile': ['c']}]"), 
+#                  eval("{'a': 'Anakin', 'c': 'Sidious', 'b': 'e', 'e': 'Pine', 'd': 'Pine', 'f': 'Sidious'}"))
+
+# print standardize_rule(eval("[[{'ViterbiSquirrel': ['a']}, {'Secret': ['b']}, {'Tells': ['a', 'b', 'c']}, {'Hostile': ['c']}], [{'Traitor': ['a']}]]"))
+# print standardize_rule(eval("[[{'Faster': ['Bob', 'Steve']}, {'Pig': ['Steve']}]]"))
+# print standardize_rule(eval("[[{'Buffalo': ['x']}, {'Pig': ['y']}], [{'Faster': ['x', 'y']}]]"))
+# print standardize_rule(eval("[[{'Pig': ['x']}, {'Slug': ['y']}], [{'Faster': ['x', 'y']}]]"))
+# print standardize_rule(eval("[[{'Faster': ['Bob', 'Steve']}, {'Pig': ['Steve']}]]"))
+print standardize_rule(eval("[[{'Buffalo': ['x']}, {'Pig': ['y']}], [{'Faster': ['x', 'y']}]]"))
+print standardize_rule(eval("[[{'Pig': ['x']}, {'Slug': ['y']}], [{'Faster': ['x', 'y']}]]"))
+
+

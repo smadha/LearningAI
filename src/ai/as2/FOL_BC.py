@@ -1,5 +1,7 @@
 from fact_parser import *
 
+FAILURE_SUB = "FAILURE"
+
 def make_output(suffix, goal):
     if(goal):
         print suffix + str(goal)
@@ -9,8 +11,12 @@ return a generator of substitutions
 query - [{'Traitor': ['Anakin']}] 
 '''
 def FOL_BC_ASK(KB,query):
+    print query
     for q in query:
-        return FOL_BC_OR(KB, q, [])
+        print q
+        for sub in FOL_BC_OR(KB, q, []):
+            print q, sub
+    return 
 
 '''
 goal = {'Traitor': ['Anakin']}
@@ -19,48 +25,50 @@ sub = {'a':'Anakin'}
 2. If match == goal return
 3. generate substitution
 4. Call AND for further investigation 
-'''
+'''    
 def FOL_BC_OR(KB,goal, sub):
-    if not goal:
-        return []
-    make_output("Ask: ",goal)
+    print "FOL_BC_OR -I", goal, sub
+    
+    #make_output("Ask: ",goal)
     # get match
-    match = get_match_fact(KB, goal)
-    # get LHS, RHS
-    lhs = match [0]
-    rhs = []
-    if lhs[0] == goal:
-        make_output("True: ",goal)
-        return []
-    #new_clause = []
+    # TODO handle it as a list
+    matchs = get_match_fact(KB, goal)
+    if not matchs:
+        print "FAILS FOL_BC_OR NO MATCH",goal,sub
+            
+        
+    for match_orig in matchs:
+        match = standardize_rule(match_orig)
+        # get LHS, RHS
+        lhs = match [0]
+        rhs = []
+        
+        if len(match) ==2: #check if rhs is there
+            rhs =  match [1][0] # single conclusion by design
+            new_sub = unify(rhs, goal)
+            #new_clause = substitute(match, new_sub) 
+        else: #process LHS    
+            new_sub = unify(lhs[0], goal) # if no implication than only one atomic sentence
+            if (new_sub): #TODO TEST
+                new_goal = substitute(goal, new_sub)
+                if lhs[0] == new_goal:
+                    lhs[0] = {}
+            else:
+                # if no sub available and lhs[0] != new_goal failure
+                if lhs[0] != goal:
+                    new_sub = FAILURE_SUB
+                else:
+                    lhs[0]={}
     
-    if len(match) ==2: #check if rhs is there
-        rhs =  match [1][0] # single conclusion by design
-        new_sub = unify(rhs, goal)
-        #new_clause = substitute(match, new_sub) 
-    else: #process LHS
-        for fact in lhs:
-            new_sub = unify(fact, goal)
-            if (new_sub):
-                #new_clause = substitute(match, new_sub)
-                break
-
+        # TODO chain substitution 
+        new_sub.update(sub)
+        
+        #Pass LHS to AND TREE 
+        print "FOL_BC_OR -F", lhs,new_sub
+        
+        for sub1 in FOL_BC_AND(KB,lhs,new_sub):
+            yield sub1
     
-    sub.append(new_sub)
-    #Pass LHS to AND TREE 
-
-    and_sub = FOL_BC_AND(KB,lhs,sub)
-    deduced_state = rhs
-    sub+=and_sub
-    for sub_i in sub:
-        deduced_state = substitute(deduced_state, sub_i)
-#         print '*',goal, rhs,[new_sub, unify(goal, deduced_state)]
-    
-    if (deduced_state):
-        sub.append(unify(goal, deduced_state))
-        make_output("True-: ", deduced_state)
-    
-    return sub
 
 
 '''
@@ -68,32 +76,33 @@ goals = [{'ViterbiSquirrel': ['a']}, {'Secret': ['b']}, {'Tells': ['a', 'b', 'c'
 sub= {'a': 'Anakin'}
 yields a substitution
 '''
-def FOL_BC_AND(KB,goals,subs):
+def FOL_BC_AND(KB,goals,sub):
     '''    
-    generator FOL-BC-AND(KB,goals,subs) yields a substitution if subs = failure then return
-    else if LENGTH(goals) = 0 then yield subs
+    generator FOL-BC-AND(KB,goals,sub) yields a substitution if sub = failure then return
+    else if LENGTH(goals) = 0 then yield sub
     else do
     first,rest <- FIRST(goals), REST(goals)
-    for each subs' in FOL-BC-OR(KB, SUBST(subs, first), subs) do
-    for each subs'' in FOL-BC-AND(KB,rest,subs') do yield subs''
+    for each sub' in FOL-BC-OR(KB, SUBST(sub, first), sub) do
+    for each sub'' in FOL-BC-AND(KB,rest,sub') do yield sub''
     '''
-    if not goals:
-        return []
-    for sub in subs:
-        goals = substitute(goals, sub) 
-#     print  "FOL_BC_AND", goals, subs
+    #print  "FOL_BC_AND -I" ,goals,sub
     
-    first = goals.pop(0)
+    if sub == FAILURE_SUB :
+        print  "FALURE FOL_BC_AND FALURE" ,goals,sub
+        return
     
-    new_sub = FOL_BC_OR(KB, first, subs)
-#     if(new_sub):
-#         print goals
-#         print new_sub
+    if not goals or not goals[0]:
+        print "TRUE FOL_BC_AND -R1 ",goals,sub
+        yield sub
+    else:             
+        first = goals[0]
+        rest = goals[1:]
+        
+        for sub1 in FOL_BC_OR(KB, substitute(first, sub), sub) :
+            print "FOL_BC_AND -R2 ",goals,sub1
+            for sub2 in FOL_BC_AND(KB,rest,sub1) : 
+    #            print "FOL_BC_AND -R3 ",goals,sub2
+                yield sub2
 
-    for sub in new_sub:
-        goals = substitute(goals, sub)
-         
-    FOL_BC_AND(KB, goals, new_sub)
     
-    return new_sub
     

@@ -37,10 +37,11 @@ knowledge = [parse_full_facts(k) for k in knowledge]
 # print get_match_fact(knowledge,eval("{'Traitor': ['Anakin']}"))
 # print get_match_fact(knowledge,eval("{'Enemy': ['Sidious','x']}") )
 # print "---",get_match_fact(knowledge,eval("{'ViterbiSquirrel': ['Anakin']}") )
+print "_-_-_",get_match_fact(knowledge,eval("{'ViterbiSquirrel': ['x']}"))
 
-query = standardize_var(query)
+# query = standardize_var(query)
 print query
-knowledge = standardize(knowledge)
+# knowledge = standardize(knowledge)
 print "\n".join([str(k) for k in knowledge])
 print "---"
 
