@@ -1,12 +1,17 @@
 from fact_parser import *
 
 FAILURE_SUB = "FAILURE"
+traverse_log = ""
 
 def make_output(suffix, goal=None):
+    global traverse_log
+    
     if(goal):
-        print suffix + str(goal)
+#         print suffix + ressurect_fact(goal)
+        traverse_log +="\r\n{0}".format(suffix + ressurect_fact(goal))
     else:
-        print suffix
+#         print suffix
+        traverse_log +="\r\n{0}".format(suffix)
 
 '''
 return a generator of substitutions
@@ -15,20 +20,23 @@ query - [{'Traitor': ['Anakin']}]
 def FOL_BC_ASK(KB,query):
 #     print query
 #     print query[0]
+    global traverse_log
     for sub in FOL_BC_OR(KB, query[0], {}):
         # print "TRUE _-_-_#",sub
-        make_output("True")
         if len(query) == 2:
             for sub2 in FOL_BC_OR(KB, query[1], {}):
                 # print "_-_-_##",sub2
                 make_output("True")
-                return
+                return traverse_log
             # print "FAIL _-_-_##",query
             make_output("False")
-        return 
+        else:
+            make_output("True")
+        return  traverse_log
     
     # print "FAIL _-_-_#",query
     make_output("False")
+    return  traverse_log
     
 
 '''
@@ -50,8 +58,11 @@ def FOL_BC_OR(KB,goal, sub):
         #print "FAILS FOL_BC_OR NO MATCH",goal,sub
         make_output("False: ",goal)
             
-        
+    repeat = False
     for match_orig in matchs:
+        if repeat:
+            make_output("Ask: ",goal)
+        repeat = True
         match = standardize_rule(match_orig)
         # get LHS, RHS
         lhs = match [0]

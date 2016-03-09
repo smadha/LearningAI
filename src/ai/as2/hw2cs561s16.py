@@ -37,12 +37,18 @@ knowledge = [parse_full_facts(k) for k in knowledge]
 # print get_match_fact(knowledge,eval("{'Traitor': ['Anakin']}"))
 # print get_match_fact(knowledge,eval("{'Enemy': ['Sidious','x']}") )
 # print "---",get_match_fact(knowledge,eval("{'ViterbiSquirrel': ['Anakin']}") )
-print "_-_-_",get_match_fact(knowledge,eval("{'ViterbiSquirrel': ['x']}"))
+# print "_-_-_",get_match_fact(knowledge,eval("{'ViterbiSquirrel': ['x']}"))
 
 # query = standardize_var(query)
-print query
+# print query
 # knowledge = standardize(knowledge)
-print "\n".join([str(k) for k in knowledge])
-print "---"
+# print "\n".join([str(k) for k in knowledge])
+# print "---"
+logs = FOL_BC_ASK(knowledge, query[0])
 
-FOL_BC_ASK(knowledge, query[0])
+print logs
+
+with open("output.txt", 'w') as f:
+    f.write(logs[2:])
+    f.close()
+

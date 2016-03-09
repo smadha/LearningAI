@@ -7,6 +7,7 @@ I/P STR  -> 'Knows(Sidious,Pine)'
 O/P DICT -> {'Knows' : ['Sidious','Pine'] }
 '''
 from copy import deepcopy
+
 def _parse_one_fact(fact):
     parsed_fact = {}
     i = fact.index("(")
@@ -226,6 +227,17 @@ def substitute(clause, sub_map):
         clause_str = clause_str.replace('\'{0}\''.format(key),'\'{0}\''.format(val_temp))
         
     return eval(clause_str)
+
+def ressurect_fact(parsed_fact):
+    fact = "{0}(".format(_get_term_one_fact(parsed_fact) )
+    for var in _get_var_one_fact(parsed_fact):
+        if is_var(var):
+            var = "_"
+        fact+="{0}, ".format(var)
+    return "{0})".format(fact[:-2])
+
+ressurect_fact(eval("{'Tells': ['Anakin', 'Pine', 'z2']}"))
+
 # print _parse_one_fact("Knows(Sidious, Pine)")
 # print _parse_one_fact("Traitor(Anakin)")
 
@@ -278,7 +290,7 @@ def substitute(clause, sub_map):
 # print standardize_rule(eval("[[{'Buffalo': ['x']}, {'Pig': ['y']}], [{'Faster': ['x', 'y']}]]"))
 # print standardize_rule(eval("[[{'Pig': ['x']}, {'Slug': ['y']}], [{'Faster': ['x', 'y']}]]"))
 # print standardize_rule(eval("[[{'Faster': ['Bob', 'Steve']}, {'Pig': ['Steve']}]]"))
-print standardize_rule(eval("[[{'Buffalo': ['x']}, {'Pig': ['y']}], [{'Faster': ['x', 'y']}]]"))
-print standardize_rule(eval("[[{'Pig': ['x']}, {'Slug': ['y']}], [{'Faster': ['x', 'y']}]]"))
+# print standardize_rule(eval("[[{'Buffalo': ['x']}, {'Pig': ['y']}], [{'Faster': ['x', 'y']}]]"))
+# print standardize_rule(eval("[[{'Pig': ['x']}, {'Slug': ['y']}], [{'Faster': ['x', 'y']}]]"))
 
 
