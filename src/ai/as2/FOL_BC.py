@@ -12,6 +12,7 @@ def make_output(suffix, goal=None):
     else:
 #         print suffix
         traverse_log +="\r\n{0}".format(suffix)
+    
 
 '''
 return a generator of substitutions
@@ -54,11 +55,14 @@ def FOL_BC_OR(KB,goal, sub):
     # get match
     # TODO handle it as a list
     matchs = get_match_fact(KB, goal)
+    is_false = True
     if not matchs:
         #print "FAILS FOL_BC_OR NO MATCH",goal,sub
+        is_false = False
         make_output("False: ",goal)
             
     repeat = False
+    
     for match_orig in matchs:
         if repeat:
             make_output("Ask: ",goal)
@@ -82,6 +86,8 @@ def FOL_BC_OR(KB,goal, sub):
                 # if no sub available and lhs[0] != new_goal failure
                 if lhs[0] != goal:
                     new_sub = FAILURE_SUB
+                    is_false = False
+                    print "is_false = False", goal
                 else:
                     lhs[0]={}
     
@@ -90,13 +96,16 @@ def FOL_BC_OR(KB,goal, sub):
         
         #Pass LHS to AND TREE 
         ##print "FOL_BC_OR -F", lhs,new_sub
-        
-            
+
         for sub1 in FOL_BC_AND(KB,lhs,new_sub):
+            is_false = False
             if sub1:
-                make_output("True: ",substitute(goal,sub1))
+                make_output("True: ", substitute(goal,sub1) )
             yield sub1
-    
+        
+    if is_false:
+            print "is_false", goal,sub
+            make_output("False: ", substitute(goal,sub) )
 
 
 '''
