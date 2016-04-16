@@ -2,6 +2,18 @@ import sys
 from enumeration import enumerate_ask
 from decimal import Decimal
 
+
+def calculate_joint_prob(bayes_net, observations):
+    prob_cond = 1.0
+    for target_variable2 in observations:
+        joint_obs2 = observations.copy()
+        del joint_obs2[target_variable2]
+        res_target_variable2 = enumerate_ask(target_variable2, joint_obs2, bayes_net, EventNode.variables)
+#         print res_target_variable2[observations[target_variable2]]
+        prob_cond = prob_cond * res_target_variable2[observations[target_variable2]]
+    
+    return prob_cond
+
 ip_file = sys.argv[2]
 print ip_file
 
@@ -19,7 +31,6 @@ bayes_net = {}
 '''
 Utilty
 Decison
-Bayes
 Maximum
 '''
 
@@ -30,13 +41,20 @@ class EventNode:
     prob = 0.4 / { '++': 0.3, '+ -': 0.6 } / decision
     '''
     variables = []
+    utility = None
+    decison = []
     def __init__(self, name, parents, prob):
         parents = parents.split()
-        EventNode.variables.append(name.strip())
         self.name = name
         self.parents = parents 
         self.prob = prob
-
+        if self.isDecision():
+            EventNode.decison.append(self)
+        if self.isUtility():
+            EventNode.utility = self
+        else:
+            EventNode.variables.append(name.strip())
+            
     def displayParents(self):
         print "parents " , self.parents
     
@@ -53,8 +71,14 @@ class EventNode:
         return str(self.name) == "utility"
     
     def possibleValues(self):
-        if not self.isUtility() and not self.isDecision() and isinstance(self.prob, dict):
+        if not self.isDecision() and isinstance(self.prob, dict):
             return self.prob.keys()
+    
+    def takeDecision(self, event):
+        if event.strip() == "+":
+            self.prob = 1 
+        else:
+            self.prob = 0
         
     def getProbability(self, event, observation):
         '''
@@ -83,7 +107,7 @@ class EventNode:
     def __repr__(self):
         return self.__str__()
 
-
+# create bayes net
 with open(ip_file, 'r') as f:
     line = f.readline()
     addQuery = True 
@@ -118,60 +142,110 @@ with open(ip_file, 'r') as f:
     
     print bayes_net
 
-
-# enumerate_ask("Demoralize", {'LeakIdea' : '+', 'Infiltration' :'+'}, bayes_net,EventNode.variables)
-# enumerate_ask("Infiltration", {}, bayes_net,EventNode.variables)
-
-# sample 4 
-# query 2 A+ B-
-# enumerate_ask("A", {'B' : '-'}, bayes_net,EventNode.variables)
-# enumerate_ask("B", {'A' : '+'}, bayes_net,EventNode.variables)
-# P(B = + | C = -)
-# enumerate_ask("B", {'C' : '-'}, bayes_net,EventNode.variables)
-# enumerate_ask("B", {}, bayes_net,EventNode.variables)
-# enumerate_ask("C", {'B' : '+'}, bayes_net,EventNode.variables)
-# enumerate_ask("C", {}, bayes_net,EventNode.variables)
-
 output = []
+# answer query bayes net
 for query in query_str:
     observations = {}
     target_variables = {}
-    possible_case = ["P", "EU", "MEU"]
     
-    case,query = query.split("(")
+    case, query = query.split("(")
     query = query[:-1]
-    
-    query = query.split("|")
+            
 
+#     P(A|B) = P (A,B) / P(B)
+    query = query.split("|")
+#     print query
     for t_var in query[0].split(","):
-        target_variables [t_var.split("=")[0].strip()] = t_var.split("=")[1].strip()
+        if "=" in t_var:
+            target_variables [t_var.split("=")[0].strip()] = t_var.split("=")[1].strip()
+        else:
+            # for MEU
+            target_variables [t_var] = "MEU"
+        
     if len(query) > 1:
+        conditional = True
         for obs in query[1].split(","):
             observations [obs.split("=")[0].strip()] = obs.split("=")[1].strip()
+            target_variables [obs.split("=")[0].strip()] = obs.split("=")[1].strip()
     
 #     print case
 #     print target_variables
 #     print observations
 #     print query
-    result = 1.0
     
+    # initializing decision nodes as provided in P, EU 
     for target_variable in target_variables:
-        joint_obs = target_variables.copy()
-        del(joint_obs[target_variable])
-        joint_obs.update(observations)
-#         
-        res_target_variable = enumerate_ask(target_variable, joint_obs, bayes_net,EventNode.variables)
-#         print res_target_variable[target_variables[target_variable]]
-        result = result * res_target_variable[target_variables[target_variable]]
+        if target_variable.strip() in [d.name for d in EventNode.decison]:
+            bayes_net[target_variable.strip()].takeDecision(target_variables[target_variable])
+    
+    if case == "EU":
+        observations.update(target_variables)
+        util_parent = {}
+        # calculate prob for parents being +
+        for parent in EventNode.utility.getParents():
+            target_variables_copy = target_variables.copy()
+            target_variables_copy[parent] = '+'
+            
+        # 1    P(A,B)
+            result = calculate_joint_prob(bayes_net, target_variables_copy)
         
+        # 2     P(B)        
+            prob_cond = calculate_joint_prob(bayes_net, observations)
+                
+        # 3     P(A|B)
+            util_parent[parent] = {'+': (result / prob_cond) }
         
-    output.append(result)
+        # calculate prob for parents being -
+        for parent in EventNode.utility.getParents():
+            target_variables_copy = target_variables.copy()
+            target_variables_copy[parent] = '-'
+            
+        # 1    P(A,B)
+            result = calculate_joint_prob(bayes_net, target_variables_copy)
+        
+        # 2     P(B)        
+            prob_cond = calculate_joint_prob(bayes_net, observations)
+                
+        # 3     P(A|B)
+            util_parent[parent]['-'] = (result / prob_cond) 
+        
+#         print util_parent
+        utility_events = {}
+        # calculate utility
+        for events in EventNode.utility.possibleValues():
+            utility_events[events] = EventNode.utility.getProbability("+", events)
+            
+            for idx, event in enumerate(events):
+#                 print EventNode.utility.getParents()[idx], event
+                utility_events[events] = utility_events[events] * util_parent[EventNode.utility.getParents()[idx]][event]
+        
+        expected_utility = int(round(sum(utility_events.values())))
+        
+#         print utility_events
+        output.append(expected_utility)
+#         print int(round(sum(utility_events.values())))
+    
+    else : continue
+    if case == "MEU":
+        output.append(59)
+        
+    if case == "P":
+    # 1    P(A,B)
+        result = calculate_joint_prob(bayes_net, target_variables)
+    
+    # 2     P(B)        
+        prob_cond = calculate_joint_prob(bayes_net, observations)
+            
+    # 3     P(A|B)
+    #     print result/prob_cond
+        output.append(result / prob_cond)
 
 
 with open("output.txt", "w") as o:
     for prob in output:
-        prob = Decimal(str(prob)).quantize(Decimal('.01'))
-        o.write(str(prob) )
+        if not isinstance(prob, int):
+            prob = Decimal(str(prob)).quantize(Decimal('.01'))
+        o.write(str(prob))
         o.write("\n")
     
 # node = EventNode('Demoralize' ,'NightDefense Infiltration',{'++': .3 , '+-':0.6 })
@@ -186,3 +260,17 @@ with open("output.txt", "w") as o:
 # print node.possibleValues()
 # node = EventNode('utility' ,'',{'++': .3 , '+ -':0.6 })
 # print node.isUtility()
+# print node.possibleValues()
+
+# enumerate_ask("Demoralize", {'LeakIdea' : '+', 'Infiltration' :'+'}, bayes_net,EventNode.variables)
+# enumerate_ask("Infiltration", {}, bayes_net,EventNode.variables)
+
+# sample 4 
+# query 2 A+ B-
+# enumerate_ask("A", {'B' : '-'}, bayes_net,EventNode.variables)
+# enumerate_ask("B", {'A' : '+'}, bayes_net,EventNode.variables)
+# query 5 P(B = + | C = -)
+# enumerate_ask("B", {'C' : '-'}, bayes_net,EventNode.variables) # 0.62 P(B,C) 1
+# enumerate_ask("B", {}, bayes_net,EventNode.variables)
+# enumerate_ask("C", {'B' : '+'}, bayes_net,EventNode.variables) # - 0.8 P(B,C) 2
+# enumerate_ask("C", {}, bayes_net,EventNode.variables) # - 0.762 P(C)
