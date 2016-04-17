@@ -3,6 +3,45 @@ from enumeration import enumerate_ask
 from decimal import Decimal
 
 
+def getExpectedUtility(bayes_net, observations, target_variables):
+    observations.update(target_variables)
+    util_parent = {}
+# calculate prob for parents being +
+    for parent in EventNode.utility.getParents():
+        target_variables_copy = target_variables.copy()
+        target_variables_copy[parent] = '+'
+# 1    P(A,B)
+        result = calculate_joint_prob(bayes_net, target_variables_copy)
+# 2     P(B)
+        prob_cond = calculate_joint_prob(bayes_net, observations)
+# 3     P(A|B)
+        util_parent[parent] = {'+':(result / prob_cond)}
+    
+# calculate prob for parents being -
+    for parent in EventNode.utility.getParents():
+        target_variables_copy = target_variables.copy()
+        target_variables_copy[parent] = '-'
+# 1    P(A,B)
+        result = calculate_joint_prob(bayes_net, target_variables_copy)
+# 2     P(B)
+        prob_cond = calculate_joint_prob(bayes_net, observations)
+# 3     P(A|B)
+        util_parent[parent]['-'] = result / prob_cond
+    
+#         print util_parent
+    utility_events = {}
+    # calculate utility
+    for events in EventNode.utility.possibleValues():
+        utility_events[events] = EventNode.utility.getProbability("+", events)
+        for idx, event in enumerate(events):
+#                 print EventNode.utility.getParents()[idx], event
+            utility_events[events] = utility_events[events] * util_parent[EventNode.utility.getParents()[idx]][event]
+    
+#     print "########", utility_events
+    expected_utility = sum(utility_events.values())
+    
+    return expected_utility
+
 def calculate_joint_prob(bayes_net, observations):
     prob_cond = 1.0
     for target_variable2 in observations:
@@ -19,6 +58,10 @@ print ip_file
 
 SEP_QUERY = "******"
 SEP_NODE = "***"
+BOOL_LEGEND_2 = set(["+","-"])
+BOOL_LEGEND_4 = set(["++","--","-+","+-"])
+BOOL_LEGEND_8 = set(["+++","+--","+-+","++-","-++","---","--+","-+-"])
+
 
 query_observations = []
 query_str = []
@@ -28,11 +71,6 @@ Value - EventNode
 '''
 bayes_net = {}
 
-'''
-Utilty
-Decison
-Maximum
-'''
 
 
 class EventNode:
@@ -77,7 +115,7 @@ class EventNode:
     def takeDecision(self, event):
         if event.strip() == "+":
             self.prob = 1 
-        else:
+        elif event.strip() == "-":
             self.prob = 0
         
     def getProbability(self, event, observation):
@@ -94,7 +132,7 @@ class EventNode:
 #         print self.name, event, observation, self.prob, prob_calc
         if event.strip() == "+":
             return prob_calc 
-        else:
+        elif event.strip() == "-":
             return 1 - prob_calc
         
     
@@ -124,19 +162,19 @@ with open(ip_file, 'r') as f:
             else :  # add node
                 node_parent = line.split("|")
                 name = node_parent[0].strip()
-                parent = ""
+                parent_name = ""
                 prob = {}
                 if len(node_parent) > 1:
-                    parent = node_parent[1].strip()
+                    parent_name = node_parent[1].strip()
                     prob = {}
-                    for par in range(pow(2, len(parent.split(" ")))):
+                    for par in range(pow(2, len(parent_name.split(" ")))):
                         line = f.readline().strip()
                         prob[''.join(line.split()[1:])] = float(line.split()[0])
                 else:
                     prob = f.readline().strip()
                     if prob != 'decision':
                         prob = float(prob)
-                bayes_net[name] = EventNode(name , parent, prob)
+                bayes_net[name] = EventNode(name , parent_name, prob)
                 
         line = f.readline()
     
@@ -147,7 +185,7 @@ output = []
 for query in query_str:
     observations = {}
     target_variables = {}
-    
+    decison_node_order = []
     case, query = query.split("(")
     query = query[:-1]
             
@@ -160,7 +198,8 @@ for query in query_str:
             target_variables [t_var.split("=")[0].strip()] = t_var.split("=")[1].strip()
         else:
             # for MEU
-            target_variables [t_var] = "MEU"
+            target_variables [t_var.strip()] = "MEU"
+            decison_node_order.append(t_var.strip())
         
     if len(query) > 1:
         conditional = True
@@ -173,61 +212,46 @@ for query in query_str:
 #     print observations
 #     print query
     
-    # initializing decision nodes as provided in P, EU 
+    # initializing decision nodes as provided in P, EU condition of MEU 
     for target_variable in target_variables:
         if target_variable.strip() in [d.name for d in EventNode.decison]:
             bayes_net[target_variable.strip()].takeDecision(target_variables[target_variable])
     
-    if case == "EU":
-        observations.update(target_variables)
-        util_parent = {}
-        # calculate prob for parents being +
-        for parent in EventNode.utility.getParents():
-            target_variables_copy = target_variables.copy()
-            target_variables_copy[parent] = '+'
-            
-        # 1    P(A,B)
-            result = calculate_joint_prob(bayes_net, target_variables_copy)
-        
-        # 2     P(B)        
-            prob_cond = calculate_joint_prob(bayes_net, observations)
-                
-        # 3     P(A|B)
-            util_parent[parent] = {'+': (result / prob_cond) }
-        
-        # calculate prob for parents being -
-        for parent in EventNode.utility.getParents():
-            target_variables_copy = target_variables.copy()
-            target_variables_copy[parent] = '-'
-            
-        # 1    P(A,B)
-            result = calculate_joint_prob(bayes_net, target_variables_copy)
-        
-        # 2     P(B)        
-            prob_cond = calculate_joint_prob(bayes_net, observations)
-                
-        # 3     P(A|B)
-            util_parent[parent]['-'] = (result / prob_cond) 
-        
-#         print util_parent
-        utility_events = {}
-        # calculate utility
-        for events in EventNode.utility.possibleValues():
-            utility_events[events] = EventNode.utility.getProbability("+", events)
-            
-            for idx, event in enumerate(events):
-#                 print EventNode.utility.getParents()[idx], event
-                utility_events[events] = utility_events[events] * util_parent[EventNode.utility.getParents()[idx]][event]
-        
-        expected_utility = int(round(sum(utility_events.values())))
-        
-#         print utility_events
-        output.append(expected_utility)
-#         print int(round(sum(utility_events.values())))
-    
-    else : continue
     if case == "MEU":
-        output.append(59)
+        decison_nodes = [k for k in target_variables if target_variables[k]=="MEU"]
+        possible_events = []
+        if len(decison_nodes) == 1:
+            possible_events = BOOL_LEGEND_2
+        if len(decison_nodes) == 2:
+            possible_events = BOOL_LEGEND_4
+        if len(decison_nodes) == 3:
+            possible_events = BOOL_LEGEND_8
+        
+        all_expected_utility = {}
+        
+        for events in possible_events:
+            event_key = ['0']*len(events)
+            target_variables_meu = target_variables.copy()
+            
+            for idx,event in enumerate(events):
+                target_variables_meu[decison_nodes[idx]]=event
+                # initializing decision nodes as provided in MEU 
+                bayes_net[decison_nodes[idx].strip()].takeDecision(event)
+                event_key[decison_node_order.index(decison_nodes[idx].strip())]=event
+            
+            event_key = ' '.join(event_key)
+            all_expected_utility[event_key] = getExpectedUtility(bayes_net, observations, target_variables_meu) 
+        
+        print all_expected_utility
+        max_event = max(all_expected_utility, key=all_expected_utility.get)
+        output.append(max_event + " " + str(int(round(all_expected_utility[max_event]) )))
+    
+    
+    if case == "EU":
+        expected_utility = getExpectedUtility(bayes_net, observations, target_variables)
+        
+        output.append(int(round(expected_utility)))
+#         print expected_utility
         
     if case == "P":
     # 1    P(A,B)
@@ -243,7 +267,7 @@ for query in query_str:
 
 with open("output.txt", "w") as o:
     for prob in output:
-        if not isinstance(prob, int):
+        if isinstance(prob, float):
             prob = Decimal(str(prob)).quantize(Decimal('.01'))
         o.write(str(prob))
         o.write("\n")

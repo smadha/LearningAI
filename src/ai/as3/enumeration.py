@@ -13,10 +13,10 @@ def enumerate_ask(target_variables, observations, bayes_net, variables):
         
     # TODO make xi restricted to asked values
     for xi in ["+","-"]:
-        print target_variables, xi, observations
+#         print target_variables, xi, observations
         calc_prob[xi] = enumerate_all(hidden_variables, extend(observations, target_variables, xi), bayes_net)
     
-    print calc_prob
+#     print calc_prob
     return calc_prob
 
 def enumerate_all(variables, observations, bayes_net):
@@ -29,13 +29,6 @@ def enumerate_all(variables, observations, bayes_net):
         return 1
     
     first = variables[0]; rest = variables[1:]
-    
-#     if not set(bayes_net[first].getParents()).issubset(observations):
-#         # observation for parents are not available yet
-#         # add this to rest and we can process it later
-#         rest.append(first)   
-#         print "Appended for re-evaluation" - first
-#         return enumerate_all(rest, observations, bayes_net)
     
     # observation for parents are available
     obs_parents = ''.join([observations[p] for p in bayes_net[first].getParents()])
